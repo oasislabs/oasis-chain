@@ -16,24 +16,24 @@
 
 //! Eth rpc implementation.
 
-use std::{collections::BTreeMap, sync::Arc};
+use std::sync::Arc;
 
 use ethcore::{filter::Filter as EthcoreFilter, ids::BlockId};
-use ethereum_types::{Address, H256, H64, U256};
+use ethereum_types::{Address, H256, U256};
+use failure::Error;
 use jsonrpc_core::{
     futures::{future, Future},
     BoxFuture, Result,
 };
 use jsonrpc_macros::Trailing;
-use lazy_static::lazy_static;
 use parity_rpc::v1::{
     helpers::{errors, fake_sign},
     metadata::Metadata,
     traits::Eth,
     types::{
-        Block, BlockNumber, BlockTransactions, Bytes, CallRequest, Filter, Index, Log as RpcLog,
-        Receipt as RpcReceipt, RichBlock, Transaction as RpcTransaction, Work, H160 as RpcH160,
-        H256 as RpcH256, H64 as RpcH64, U256 as RpcU256,
+        BlockNumber, Bytes, CallRequest, Filter, Index, Log as RpcLog, Receipt as RpcReceipt,
+        RichBlock, Transaction as RpcTransaction, Work, H160 as RpcH160, H256 as RpcH256,
+        H64 as RpcH64, U256 as RpcU256,
     },
 };
 
@@ -51,16 +51,6 @@ macro_rules! try_bf {
             Ok(val) => val,
             Err(e) => return Box::new(::jsonrpc_core::futures::future::err(e.into())),
         }
-    };
-}
-
-lazy_static! {
-    // dummy-valued PoW-related block extras
-    static ref BLOCK_EXTRA_INFO: BTreeMap<String, String> = {
-        let mut map = BTreeMap::new();
-        map.insert("mixHash".into(), format!("0x{:x}", H256::default()));
-        map.insert("nonce".into(), format!("0x{:x}", H64::default()));
-        map
     };
 }
 
@@ -91,76 +81,6 @@ impl EthClient {
     /// Creates new EthClient.
     pub fn new(blockchain: Arc<Blockchain>) -> Self {
         EthClient { blockchain }
-    }
-
-    fn rich_block(&self, id: BlockNumberOrId, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
-        let block = match id {
-            BlockNumberOrId::Number(num) => {
-                // for "pending", just use latest block
-                let id = match num {
-                    BlockNumber::Latest => BlockId::Latest,
-                    BlockNumber::Earliest => BlockId::Earliest,
-                    BlockNumber::Num(n) => BlockId::Number(n),
-                    BlockNumber::Pending => BlockId::Latest,
-                };
-
-                self.blockchain.get_block(id)
-            }
-
-            BlockNumberOrId::Id(id) => self.blockchain.get_block(id),
-        };
-
-        let eip86_transition = genesis::SPEC.params().eip86_transition;
-
-        Box::new(block.map_err(jsonrpc_error).map(move |block| match block {
-            Some(block) => {
-                Some(RichBlock {
-                    inner: Block {
-                        hash: Some(block.hash().into()),
-                        size: None,
-                        // TODO: parent hash
-                        parent_hash: Default::default(),
-                        uncles_hash: Default::default(),
-                        author: Default::default(),
-                        miner: Default::default(),
-                        // TODO: state root
-                        state_root: Default::default(),
-                        transactions_root: Default::default(),
-                        receipts_root: Default::default(),
-                        number: Some(block.number().into()),
-                        gas_used: block.gas_used().into(),
-                        gas_limit: block.gas_limit().into(),
-                        logs_bloom: Some(block.log_bloom().into()),
-                        timestamp: block.timestamp().into(),
-                        difficulty: Default::default(),
-                        total_difficulty: None,
-                        seal_fields: vec![],
-                        uncles: vec![],
-                        transactions: match include_txs {
-                            true => BlockTransactions::Full(
-                                block
-                                    .transactions()
-                                    .into_iter()
-                                    .map(|txn| {
-                                        RpcTransaction::from_localized(txn, eip86_transition)
-                                    })
-                                    .collect(),
-                            ),
-                            false => BlockTransactions::Hashes(
-                                block
-                                    .transactions()
-                                    .into_iter()
-                                    .map(|txn| txn.signed.hash().into())
-                                    .collect(),
-                            ),
-                        },
-                        extra_data: Default::default(),
-                    },
-                    extra_info: BLOCK_EXTRA_INFO.clone(),
-                })
-            }
-            _ => None,
-        }))
     }
 }
 
@@ -317,11 +237,35 @@ impl Eth for EthClient {
     }
 
     fn block_by_hash(&self, hash: RpcH256, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
-        self.rich_block(BlockId::Hash(hash.into()).into(), include_txs)
+        Box::new(
+            self.blockchain
+                .get_block_by_hash(hash.into())
+                .and_then(
+                    move |blk| -> Box<dyn Future<Item = _, Error = Error> + Send> {
+                        match blk {
+                            Some(blk) => Box::new(future::ok(Some(blk.rich_block(include_txs)))),
+                            None => Box::new(future::ok(None)),
+                        }
+                    },
+                )
+                .map_err(jsonrpc_error),
+        )
     }
 
     fn block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
-        self.rich_block(num.into(), include_txs)
+        Box::new(
+            self.blockchain
+                .get_block(block_number_to_id(num))
+                .and_then(
+                    move |blk| -> Box<dyn Future<Item = _, Error = Error> + Send> {
+                        match blk {
+                            Some(blk) => Box::new(future::ok(Some(blk.rich_block(include_txs)))),
+                            None => Box::new(future::ok(None)),
+                        }
+                    },
+                )
+                .map_err(jsonrpc_error),
+        )
     }
 
     fn transaction_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<RpcTransaction>> {

@@ -1,6 +1,6 @@
 //! Oasis blockchain simulator.
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     sync::{Arc, RwLock},
 };
 
@@ -20,12 +20,15 @@ use ethcore::{
     types::ids::BlockId,
     vm::EnvInfo,
 };
-use ethereum_types::{Bloom, H256, U256};
+use ethereum_types::{Bloom, H256, H64, U256};
 use failure::{format_err, Error, Fallible};
 use futures::{future, prelude::*};
 use hash::keccak;
-use parity_rpc::v1::types::RichHeader as EthRpcRichHeader;
-
+use lazy_static::lazy_static;
+use parity_rpc::v1::types::{
+    Block as EthRpcBlock, BlockTransactions as EthRpcBlockTransactions, Header as EthRpcHeader,
+    RichBlock as EthRpcRichBlock, RichHeader as EthRpcRichHeader, Transaction as EthRpcTransaction,
+};
 use tokio_threadpool::{Builder as ThreadPoolBuilder, ThreadPool};
 
 /// Boxed future type.
@@ -492,6 +495,16 @@ impl Blockchain {
     }
 }
 
+lazy_static! {
+    // dummy-valued PoW-related block extras
+    static ref BLOCK_EXTRA_INFO: BTreeMap<String, String> = {
+        let mut map = BTreeMap::new();
+        map.insert("mixHash".into(), format!("0x{:x}", H256::default()));
+        map.insert("nonce".into(), format!("0x{:x}", H64::default()));
+        map
+    };
+}
+
 /// A wrapper that exposes a simulated Ethereum block.
 #[derive(Clone, Debug)]
 pub struct EthereumBlock {
@@ -540,31 +553,82 @@ impl EthereumBlock {
         self.hash
     }
 
-    /// Timestamp.
-    pub fn timestamp(&self) -> u64 {
-        self.timestamp
-    }
-
     // Ethereum transactions contained in the block.
     pub fn transactions(&self) -> Vec<LocalizedTransaction> {
         self.transactions.clone()
     }
 
-    pub fn gas_used(&self) -> U256 {
-        self.gas_used
-    }
-
-    pub fn gas_limit(&self) -> U256 {
-        self.gas_limit
-    }
-
-    pub fn log_bloom(&self) -> Bloom {
-        self.log_bloom
-    }
-
     pub fn rich_header(&self) -> EthRpcRichHeader {
-        // TODO: implement
-        unimplemented!()
+        EthRpcRichHeader {
+            inner: EthRpcHeader {
+                hash: Some(self.hash.into()),
+                size: None,
+                // TODO: parent hash
+                parent_hash: Default::default(),
+                uncles_hash: Default::default(),
+                author: Default::default(),
+                miner: Default::default(),
+                // TODO: state root
+                state_root: Default::default(),
+                transactions_root: Default::default(),
+                receipts_root: Default::default(),
+                number: Some(self.number.into()),
+                gas_used: self.gas_used.into(),
+                gas_limit: self.gas_limit.into(),
+                logs_bloom: self.log_bloom.into(),
+                timestamp: self.timestamp.into(),
+                difficulty: Default::default(),
+                seal_fields: vec![],
+                extra_data: Default::default(),
+            },
+            extra_info: { BLOCK_EXTRA_INFO.clone() },
+        }
+    }
+
+    pub fn rich_block(&self, include_txs: bool) -> EthRpcRichBlock {
+        let eip86_transition = genesis::SPEC.params().eip86_transition;
+        EthRpcRichBlock {
+            inner: EthRpcBlock {
+                hash: Some(self.hash.into()),
+                size: None,
+                // TODO: parent hash
+                parent_hash: Default::default(),
+                uncles_hash: Default::default(),
+                author: Default::default(),
+                miner: Default::default(),
+                // TODO: state root
+                state_root: Default::default(),
+                transactions_root: Default::default(),
+                receipts_root: Default::default(),
+                number: Some(self.number.into()),
+                gas_used: self.gas_used.into(),
+                gas_limit: self.gas_limit.into(),
+                logs_bloom: Some(self.log_bloom.into()),
+                timestamp: self.timestamp.into(),
+                difficulty: Default::default(),
+                total_difficulty: None,
+                seal_fields: vec![],
+                uncles: vec![],
+                transactions: match include_txs {
+                    true => EthRpcBlockTransactions::Full(
+                        self.transactions
+                            .clone()
+                            .into_iter()
+                            .map(|txn| EthRpcTransaction::from_localized(txn, eip86_transition))
+                            .collect(),
+                    ),
+                    false => EthRpcBlockTransactions::Hashes(
+                        self.transactions
+                            .clone()
+                            .into_iter()
+                            .map(|txn| txn.signed.hash().into())
+                            .collect(),
+                    ),
+                },
+                extra_data: Default::default(),
+            },
+            extra_info: BLOCK_EXTRA_INFO.clone(),
+        }
     }
 
     pub fn add_transaction(&mut self, txn: LocalizedTransaction) {
