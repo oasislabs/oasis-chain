@@ -351,8 +351,27 @@ impl Blockchain {
             transaction_index: 0,
             cached_sender: None,
         };
-        block.add_transaction(localized_txn.clone());
+        block.transactions = vec![localized_txn.clone()];
         chain_state.transactions.insert(txn_hash, localized_txn);
+
+        // Store the logs.
+        let logs: Vec<LocalizedLogEntry> = outcome
+            .receipt
+            .logs
+            .clone()
+            .into_iter()
+            .enumerate()
+            .map(|(i, log)| LocalizedLogEntry {
+                entry: log,
+                block_hash: block_hash,
+                block_number: number,
+                transaction_hash: txn_hash,
+                transaction_index: 0,
+                transaction_log_index: i,
+                log_index: i,
+            })
+            .collect();
+        block.logs = logs.clone();
 
         // Store the receipt.
         let localized_receipt = LocalizedReceipt {
@@ -374,22 +393,7 @@ impl Blockchain {
                     .0,
                 ),
             },
-            logs: outcome
-                .receipt
-                .logs
-                .clone()
-                .into_iter()
-                .enumerate()
-                .map(|(i, log)| LocalizedLogEntry {
-                    entry: log,
-                    block_hash: block_hash,
-                    block_number: number,
-                    transaction_hash: txn_hash,
-                    transaction_index: 0,
-                    transaction_log_index: i,
-                    log_index: i,
-                })
-                .collect(),
+            logs: logs,
             log_bloom: outcome.receipt.log_bloom,
             outcome: outcome.receipt.outcome.clone(),
         };
@@ -496,7 +500,7 @@ impl Blockchain {
 }
 
 lazy_static! {
-    // dummy-valued PoW-related block extras
+    // Dummy-valued PoW-related block extras.
     static ref BLOCK_EXTRA_INFO: BTreeMap<String, String> = {
         let mut map = BTreeMap::new();
         map.insert("mixHash".into(), format!("0x{:x}", H256::default()));
@@ -514,6 +518,7 @@ pub struct EthereumBlock {
     gas_used: U256,
     gas_limit: U256,
     log_bloom: Bloom,
+    logs: Vec<LocalizedLogEntry>,
     transactions: Vec<LocalizedTransaction>,
 }
 
@@ -530,6 +535,7 @@ impl EthereumBlock {
         Self {
             number,
             timestamp,
+            logs: vec![],
             transactions: vec![],
             hash: keccak(number.to_string()).into(),
             gas_used,
@@ -558,6 +564,7 @@ impl EthereumBlock {
         self.transactions.clone()
     }
 
+    /// Retrieve an Ethereum block header with additional metadata.
     pub fn rich_header(&self) -> EthRpcRichHeader {
         EthRpcRichHeader {
             inner: EthRpcHeader {
@@ -585,27 +592,28 @@ impl EthereumBlock {
         }
     }
 
+    /// Retrieve an Ethereum block with additional metadata.
     pub fn rich_block(&self, include_txs: bool) -> EthRpcRichBlock {
         let eip86_transition = genesis::SPEC.params().eip86_transition;
+        let rich_header = self.rich_header();
+
         EthRpcRichBlock {
             inner: EthRpcBlock {
-                hash: Some(self.hash.into()),
-                size: None,
-                // TODO: parent hash
-                parent_hash: Default::default(),
-                uncles_hash: Default::default(),
-                author: Default::default(),
-                miner: Default::default(),
-                // TODO: state root
-                state_root: Default::default(),
-                transactions_root: Default::default(),
-                receipts_root: Default::default(),
-                number: Some(self.number.into()),
-                gas_used: self.gas_used.into(),
-                gas_limit: self.gas_limit.into(),
-                logs_bloom: Some(self.log_bloom.into()),
-                timestamp: self.timestamp.into(),
-                difficulty: Default::default(),
+                hash: rich_header.hash.clone(),
+                size: rich_header.size,
+                parent_hash: rich_header.parent_hash.clone(),
+                uncles_hash: rich_header.uncles_hash.clone(),
+                author: rich_header.author.clone(),
+                miner: rich_header.miner.clone(),
+                state_root: rich_header.state_root.clone(),
+                transactions_root: rich_header.transactions_root.clone(),
+                receipts_root: rich_header.receipts_root.clone(),
+                number: rich_header.number,
+                gas_used: rich_header.gas_used,
+                gas_limit: rich_header.gas_limit,
+                logs_bloom: Some(rich_header.logs_bloom.clone()),
+                timestamp: rich_header.timestamp,
+                difficulty: rich_header.difficulty,
                 total_difficulty: None,
                 seal_fields: vec![],
                 uncles: vec![],
@@ -629,9 +637,5 @@ impl EthereumBlock {
             },
             extra_info: BLOCK_EXTRA_INFO.clone(),
         }
-    }
-
-    pub fn add_transaction(&mut self, txn: LocalizedTransaction) {
-        self.transactions.push(txn);
     }
 }
