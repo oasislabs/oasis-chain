@@ -6,14 +6,13 @@ use std::{
 
 use crate::{
     confidential::ConfidentialCtx, genesis, parity::NullBackend, storage::MemoryMKVS, util,
-    ExecutionResult, BLOCK_GAS_LIMIT, MIN_GAS_PRICE_GWEI,
 };
 use ekiden_keymanager::client::MockClient;
 use ethcore::{
     error::CallError,
     executive::{contract_address, Executed, Executive, TransactOptions},
     filter::Filter,
-    log_entry::LocalizedLogEntry,
+    log_entry::{LocalizedLogEntry, LogEntry},
     receipt::{LocalizedReceipt, TransactionOutcome},
     state::State,
     transaction::{Action, LocalizedTransaction, SignedTransaction, UnverifiedTransaction},
@@ -33,6 +32,11 @@ use tokio_threadpool::{Builder as ThreadPoolBuilder, ThreadPool};
 
 /// Boxed future type.
 type BoxFuture<T> = Box<dyn futures::Future<Item = T, Error = failure::Error> + Send>;
+
+/// Block gas limit.
+const BLOCK_GAS_LIMIT: usize = 16_000_000;
+/// Minimum gas price (in gwei).
+pub const MIN_GAS_PRICE_GWEI: usize = 1;
 
 /// Simulated blockchain.
 pub struct Blockchain {
@@ -315,7 +319,7 @@ impl Blockchain {
             author: Default::default(),
             timestamp,
             difficulty: Default::default(),
-            gas_limit: *genesis::GAS_LIMIT,
+            gas_limit: BLOCK_GAS_LIMIT.into(),
             // TODO: Get 256 last_hashes.
             last_hashes: Arc::new(vec![]),
             gas_used: Default::default(),
@@ -509,6 +513,18 @@ lazy_static! {
     };
 }
 
+/// Transaction execution result.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ExecutionResult {
+    pub cumulative_gas_used: U256,
+    pub gas_used: U256,
+    pub log_bloom: Bloom,
+    pub logs: Vec<LogEntry>,
+    pub status_code: u8,
+    #[serde(with = "serde_bytes")]
+    pub output: Vec<u8>,
+}
+
 /// A wrapper that exposes a simulated Ethereum block.
 #[derive(Clone, Debug)]
 pub struct EthereumBlock {
@@ -559,7 +575,7 @@ impl EthereumBlock {
         self.hash
     }
 
-    // Ethereum transactions contained in the block.
+    /// Ethereum transactions contained in the block.
     pub fn transactions(&self) -> Vec<LocalizedTransaction> {
         self.transactions.clone()
     }

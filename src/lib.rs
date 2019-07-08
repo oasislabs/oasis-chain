@@ -74,30 +74,12 @@ pub mod util;
 use std::sync::Arc;
 
 use clap::ArgMatches;
-use ethcore::log_entry::LogEntry;
-use ethereum_types::{Bloom, U256};
+use ethereum_types::U256;
 use failure::Fallible;
 
 use ekiden_keymanager::client::MockClient;
 
-pub use self::run::RunningGateway;
-
-/// Block gas limit.
-pub const BLOCK_GAS_LIMIT: usize = 16_000_000;
-/// Minimum gas price (in gwei).
-pub const MIN_GAS_PRICE_GWEI: usize = 1;
-
-/// Transaction execution result.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ExecutionResult {
-    pub cumulative_gas_used: U256,
-    pub gas_used: U256,
-    pub log_bloom: Bloom,
-    pub logs: Vec<LogEntry>,
-    pub status_code: u8,
-    #[serde(with = "serde_bytes")]
-    pub output: Vec<u8>,
-}
+pub use self::{blockchain::MIN_GAS_PRICE_GWEI, run::RunningGateway};
 
 pub fn start(
     _args: ArgMatches,
