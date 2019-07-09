@@ -21,7 +21,7 @@ use ethcore::{
 };
 use ethereum_types::{Bloom, H256, H64, U256};
 use failure::{format_err, Error, Fallible};
-use futures::{future, prelude::*};
+use futures::{future, prelude::*, stream};
 use hash::keccak;
 use lazy_static::lazy_static;
 use parity_rpc::v1::types::{
@@ -38,14 +38,6 @@ const BLOCK_GAS_LIMIT: usize = 16_000_000;
 /// Minimum gas price (in gwei).
 pub const MIN_GAS_PRICE_GWEI: usize = 1;
 
-/// Simulated blockchain.
-pub struct Blockchain {
-    gas_price: U256,
-    simulator_pool: Arc<ThreadPool>,
-    km_client: Arc<MockClient>,
-    chain_state: Arc<RwLock<ChainState>>,
-}
-
 /// Simulated blockchain state.
 pub struct ChainState {
     mkvs: MemoryMKVS,
@@ -56,9 +48,8 @@ pub struct ChainState {
     receipts: HashMap<H256, LocalizedReceipt>,
 }
 
-impl Blockchain {
-    /// Create new simulated blockchain.
-    pub fn new(gas_price: U256, km_client: Arc<MockClient>) -> Self {
+impl ChainState {
+    pub fn new() -> Self {
         // Initialize genesis state.
         let mkvs = MemoryMKVS::new();
         genesis::SPEC
@@ -80,15 +71,35 @@ impl Blockchain {
         blocks.insert(block_hash, genesis_block);
         block_number_to_hash.insert(block_number, block_hash);
 
-        let chain_state = ChainState {
+        Self {
+            mkvs,
             block_number,
             blocks,
             block_number_to_hash,
-            receipts: HashMap::new(),
             transactions: HashMap::new(),
-            mkvs: mkvs,
-        };
+            receipts: HashMap::new(),
+        }
+    }
 
+    pub fn get_block_by_number(&self, number: u64) -> Option<EthereumBlock> {
+        self.block_number_to_hash
+            .get(&number)
+            .and_then(|hash| self.blocks.get(hash))
+            .cloned()
+    }
+}
+
+/// Simulated blockchain.
+pub struct Blockchain {
+    gas_price: U256,
+    simulator_pool: Arc<ThreadPool>,
+    km_client: Arc<MockClient>,
+    chain_state: Arc<RwLock<ChainState>>,
+}
+
+impl Blockchain {
+    /// Create new simulated blockchain.
+    pub fn new(gas_price: U256, km_client: Arc<MockClient>) -> Self {
         Self {
             gas_price,
             simulator_pool: Arc::new(
@@ -97,7 +108,7 @@ impl Blockchain {
                     .build(),
             ),
             km_client,
-            chain_state: Arc::new(RwLock::new(chain_state)),
+            chain_state: Arc::new(RwLock::new(ChainState::new())),
         }
     }
 
@@ -141,21 +152,27 @@ impl Blockchain {
         chain_state.block_number
     }
 
+    /// Retrieve an Ethereum block given a block identifier.
+    ///
+    /// If the block is not found it returns an error.
+    pub fn get_block_unwrap(
+        &self,
+        id: BlockId,
+    ) -> impl Future<Item = EthereumBlock, Error = Error> {
+        self.get_block(id).and_then(|blk| match blk {
+            Some(blk) => Ok(blk),
+            None => Err(format_err!("block not found")),
+        })
+    }
+
     /// Retrieve the latest Ethereum block.
     pub fn get_latest_block(&self) -> impl Future<Item = EthereumBlock, Error = Error> {
         let chain_state = self.chain_state.read().unwrap();
 
-        let hash = chain_state
-            .block_number_to_hash
-            .get(&chain_state.block_number)
-            .expect("best block must exist");
-
         future::ok(
             chain_state
-                .blocks
-                .get(hash)
-                .expect("best block must exist")
-                .clone(),
+                .get_block_by_number(chain_state.block_number)
+                .expect("best block must exist"),
         )
     }
 
@@ -166,13 +183,7 @@ impl Blockchain {
     ) -> impl Future<Item = Option<EthereumBlock>, Error = Error> {
         let chain_state = self.chain_state.read().unwrap();
 
-        future::ok(
-            chain_state
-                .block_number_to_hash
-                .get(&number)
-                .and_then(|hash| chain_state.blocks.get(hash))
-                .cloned(),
-        )
+        future::ok(chain_state.get_block_by_number(number))
     }
 
     /// Retrieve a specific Ethereum block, identified by its block hash.
@@ -496,10 +507,41 @@ impl Blockchain {
     /// Looks up logs based on the given filter.
     pub fn logs(
         &self,
-        _filter: Filter,
+        filter: Filter,
     ) -> impl Future<Item = Vec<LocalizedLogEntry>, Error = Error> {
-        // TODO: implement
-        Err(format_err!("not implemented")).into_future()
+        // Resolve starting and ending blocks.
+        let block_numbers = future::join_all(vec![
+            Box::new(self.get_block_unwrap(filter.from_block)),
+            Box::new(self.get_block_unwrap(filter.to_block)),
+        ]);
+
+        let chain_state = self.chain_state.clone();
+
+        // Get blocks.
+        let blocks = block_numbers.and_then(move |nums| {
+            let from_block = nums[0].number_u64();
+            let to_block = nums[1].number_u64();
+
+            stream::iter_ok(from_block..=to_block)
+                .map(move |number| {
+                    let chain_state = chain_state.read().unwrap();
+                    chain_state
+                        .get_block_by_number(number)
+                        .expect("block should exist")
+                })
+                .collect()
+        });
+
+        // Get logs.
+        // TODO: filter and sort
+        let logs = blocks.map(move |blocks| {
+            blocks
+                .into_iter()
+                .flat_map(move |blk| blk.logs.clone())
+                .collect()
+        });
+
+        Box::new(logs)
     }
 }
 
