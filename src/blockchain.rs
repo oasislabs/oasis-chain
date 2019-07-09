@@ -515,9 +515,8 @@ impl Blockchain {
             Box::new(self.get_block_unwrap(filter.to_block)),
         ]);
 
-        let chain_state = self.chain_state.clone();
-
         // Get blocks.
+        let chain_state = self.chain_state.clone();
         let blocks = block_numbers.and_then(move |nums| {
             let from_block = nums[0].number_u64();
             let to_block = nums[1].number_u64();
@@ -533,13 +532,19 @@ impl Blockchain {
         });
 
         // Get logs.
-        // TODO: filter and sort
-        let logs = blocks.map(move |blocks| {
-            blocks
-                .into_iter()
-                .flat_map(move |blk| blk.logs.clone())
-                .collect()
-        });
+        // TODO: filter
+        let logs = blocks
+            .map(move |blocks| {
+                blocks
+                    .into_iter()
+                    .flat_map(move |blk| blk.logs.clone())
+                    .collect()
+            })
+            .and_then(|logs: Vec<LocalizedLogEntry>| {
+                let mut logs = logs;
+                logs.sort_by(|a, b| a.block_number.partial_cmp(&b.block_number).unwrap());
+                future::ok(logs)
+            });
 
         Box::new(logs)
     }
