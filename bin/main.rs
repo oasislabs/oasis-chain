@@ -90,11 +90,9 @@ fn main() -> Fallible<()> {
         .get_matches();
 
     let log_level = match args.occurrences_of("v") {
-        0 => log::Level::Error,
-        1 => log::Level::Warn,
-        2 => log::Level::Info,
-        3 => log::Level::Debug,
-        4 | _ => log::Level::Trace,
+        0 => log::Level::Info,
+        1 => log::Level::Debug,
+        2 | _ => log::Level::Trace,
     };
     simple_logger::init_with_level(log_level).unwrap();
 
