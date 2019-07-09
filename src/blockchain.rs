@@ -532,12 +532,12 @@ impl Blockchain {
         });
 
         // Get logs.
-        // TODO: filter
         let logs = blocks
             .map(move |blocks| {
                 blocks
                     .into_iter()
                     .flat_map(move |blk| blk.logs.clone())
+                    .filter(|log| filter.matches(log))
                     .collect()
             })
             .and_then(|logs: Vec<LocalizedLogEntry>| {
