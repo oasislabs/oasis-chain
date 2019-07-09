@@ -147,7 +147,7 @@ impl Blockchain {
     }
 
     /// The current best block number.
-    fn best_block_number(&self) -> u64 {
+    pub fn best_block_number(&self) -> u64 {
         let chain_state = self.chain_state.read().unwrap();
         chain_state.block_number
     }
@@ -602,11 +602,6 @@ impl EthereumBlock {
         }
     }
 
-    /// Ethereum block number.
-    pub fn number(&self) -> U256 {
-        U256::from(self.number)
-    }
-
     /// Ethereum block number as an u64.
     pub fn number_u64(&self) -> u64 {
         self.number
@@ -693,7 +688,7 @@ impl EthereumBlock {
                 },
                 extra_data: Default::default(),
             },
-            extra_info: BLOCK_EXTRA_INFO.clone(),
+            extra_info: rich_header.extra_info.clone(),
         }
     }
 }

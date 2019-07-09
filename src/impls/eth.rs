@@ -117,12 +117,9 @@ impl Eth for EthClient {
     }
 
     fn block_number(&self) -> BoxFuture<RpcU256> {
-        Box::new(
-            self.blockchain
-                .get_latest_block()
-                .map(|blk| RpcU256::from(blk.number()))
-                .map_err(jsonrpc_error),
-        )
+        Box::new(future::ok(RpcU256::from(
+            self.blockchain.best_block_number(),
+        )))
     }
 
     fn balance(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
