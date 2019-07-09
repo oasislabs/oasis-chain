@@ -309,14 +309,16 @@ impl Blockchain {
         let mut chain_state = self.chain_state.write().unwrap();
 
         // Initialize Ethereum state access functions.
-        // TODO: previous block hash
+        let best_block = chain_state
+            .get_block_by_number(chain_state.block_number)
+            .expect("must have a best block");
         let mut state = State::from_existing(
             Box::new(chain_state.mkvs.clone()),
             NullBackend,
             U256::zero(),       /* account_start_nonce */
             Default::default(), /* factories */
             Some(Box::new(ConfidentialCtx::new(
-                Default::default(),
+                best_block.hash,
                 self.km_client.clone(),
             ))),
         )
@@ -332,7 +334,7 @@ impl Blockchain {
             difficulty: Default::default(),
             gas_limit: BLOCK_GAS_LIMIT.into(),
             // TODO: Get 256 last_hashes.
-            last_hashes: Arc::new(vec![]),
+            last_hashes: Arc::new(vec![best_block.hash]),
             gas_used: Default::default(),
         };
 
@@ -460,13 +462,17 @@ impl Blockchain {
         simulator_pool.spawn_handle(future::lazy(move || {
             let chain_state = chain_state.read().unwrap();
 
+            let best_block = chain_state
+                .get_block_by_number(chain_state.block_number)
+                .expect("must have a best block");
+
             let env_info = EnvInfo {
                 number: chain_state.block_number + 1,
                 author: Default::default(),
                 timestamp: util::get_timestamp(),
                 difficulty: Default::default(),
                 // TODO: Get 256 last hashes.
-                last_hashes: Arc::new(vec![]),
+                last_hashes: Arc::new(vec![best_block.hash]),
                 gas_used: Default::default(),
                 gas_limit: U256::max_value(),
             };
