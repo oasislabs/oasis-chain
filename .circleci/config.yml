@@ -19,4 +19,4 @@ jobs:
       # Build
       - run:
           name: Build
-          command: cargo build --debug
+          command: cargo build
