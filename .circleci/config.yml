@@ -11,7 +11,7 @@ jobs:
       # Check out source from github
       - checkout
 
-      # Build
+      # Check style
       - run:
           name: Rustfmt
           command: cargo fmt -- --check
@@ -20,3 +20,8 @@ jobs:
       - run:
           name: Build
           command: cargo build
+
+      # Test
+      - run:
+          name: Cargo tests
+          command: cargo test
