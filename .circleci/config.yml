@@ -1,0 +1,19 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: oasislabs/rust:latest
+    resource_class: xlarge
+    steps:
+      # Check out source from github
+      - checkout
+
+      # Build
+      - run:
+          name: Rustfmt
+          command: cargo fmt -- --check
+
+      # Build
+      - run:
+          name: Build
+          command: cargo build --debug
