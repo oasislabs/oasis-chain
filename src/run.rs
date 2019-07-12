@@ -34,6 +34,7 @@ use crate::{blockchain::Blockchain, pubsub::Broker};
 pub fn execute(
     km_client: Arc<MockClient>,
     pubsub_interval_secs: u64,
+    interface: &str,
     http_port: u16,
     num_threads: usize,
     ws_port: u16,
@@ -55,6 +56,7 @@ pub fn execute(
     let mut ws_conf = WsConfiguration::default();
     ws_conf.origins = None;
     ws_conf.hosts = None;
+    ws_conf.interface = interface.into();
     ws_conf.port = ws_port;
 
     // Max # of concurrent connections. the default is 100, which is "low" and "should be increased":
@@ -64,6 +66,7 @@ pub fn execute(
     let mut http_conf = HttpConfiguration::default();
     http_conf.cors = None;
     http_conf.hosts = None;
+    http_conf.interface = interface.into();
     http_conf.port = http_port;
     http_conf.server_threads = num_threads;
 
