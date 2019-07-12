@@ -72,7 +72,7 @@ rustc-serialize = { git = "https://github.com/jethrogb/rustc-serialize", branch 
 
 [[bin]]
 name = "oasis-chain"
-path ="bin/main.rs"
+path = "bin/main.rs"
 
 [workspace]
 members = [
