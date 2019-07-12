@@ -84,6 +84,7 @@ pub use self::{blockchain::MIN_GAS_PRICE_GWEI, run::RunningGateway};
 pub fn start(
     _args: ArgMatches,
     pubsub_interval_secs: u64,
+    interface: &str,
     http_port: u16,
     num_threads: usize,
     ws_port: u16,
@@ -95,6 +96,7 @@ pub fn start(
     run::execute(
         km_client,
         pubsub_interval_secs,
+        interface,
         http_port,
         num_threads,
         ws_port,

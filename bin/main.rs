@@ -80,6 +80,13 @@ fn main() -> Fallible<()> {
                 .default_value(&gas_price)
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("interface")
+                .long("interface")
+                .help("Interface address for HTTP and WebSocket servers.")
+                .default_value("127.0.0.1")
+                .takes_value(true),
+        )
         // Logging.
         .arg(
             Arg::with_name("v")
@@ -97,6 +104,7 @@ fn main() -> Fallible<()> {
     simple_logger::init_with_level(log_level).unwrap();
 
     let num_threads = value_t!(args, "threads", usize)?;
+    let interface = value_t!(args, "interface", String)?;
     let http_port = value_t!(args, "http-port", u16)?;
     let ws_port = value_t!(args, "ws-port", u16)?;
     let ws_max_connections = value_t!(args, "ws-max-connections", usize)?;
@@ -106,6 +114,7 @@ fn main() -> Fallible<()> {
     let client = oasis_chain::start(
         args,
         pubsub_interval_secs,
+        &interface,
         http_port,
         num_threads,
         ws_port,
