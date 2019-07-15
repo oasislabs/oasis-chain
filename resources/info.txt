@@ -1,22 +1,3 @@
-# oasis-chain
-
-A simulated Oasis blockchain for local testing.
-
-## Build/install
-```
-$ git clone https://github.com/oasislabs/oasis-chain
-$ cd oasis-chain
-$ cargo install --path . --debug
-```
-or
-```
-$ RUSTFLAGS='-C target-feature=+aes,+ssse3' cargo install --git https://github.com/oasislabs/oasis-chain --debug
-```
-
-## Run
-```
-$ oasis-chain
-2019-07-15 08:18:55,393 INFO  [oasis_chain] Starting Oasis local chain
 Accounts (100 DEV each)
 ==================
 (0) 0xb8b3666d8fea887d97ab54f571b8e5020c5c8b58
@@ -55,7 +36,3 @@ Gas Price
 Gas Limit
 ==================
 16000000
-
-2019-07-15 08:18:55,488 INFO  [ws] Listening for new connections on 127.0.0.1:8546.
-2019-07-15 08:18:55,492 INFO  [oasis_chain] Oasis local chain is running
-```

@@ -111,6 +111,9 @@ fn main() -> Fallible<()> {
     let pubsub_interval_secs = value_t!(args, "pubsub-interval", u64)?;
     let gas_price = util::gwei_to_wei(value_t!(args, "gas-price", u64)?);
 
+    let chain_info = include_str!("../resources/info.txt");
+    info!("Starting Oasis local chain\n{}", chain_info);
+
     let client = oasis_chain::start(
         args,
         pubsub_interval_secs,
