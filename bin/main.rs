@@ -18,6 +18,7 @@
 
 #![deny(warnings)]
 
+extern crate fdlimit;
 extern crate signal_hook;
 #[macro_use]
 extern crate clap;
@@ -30,11 +31,15 @@ use std::{io::Read, os::unix::net::UnixStream};
 
 use clap::{App, Arg};
 use failure::Fallible;
+use fdlimit::raise_fd_limit;
 use log::{error, info};
 
 use oasis_chain::{util, MIN_GAS_PRICE_GWEI};
 
 fn main() -> Fallible<()> {
+    // Increase max number of open files.
+    raise_fd_limit();
+
     let gas_price = MIN_GAS_PRICE_GWEI.to_string();
 
     let args = App::new("Oasis chain")
