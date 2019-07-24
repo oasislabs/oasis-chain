@@ -2,7 +2,7 @@
 name = "oasis-chain"
 version = "0.1.0"
 license = "GPL-3.0"
-authors = ["Oasis Labs Inc. <info@oasislabs.com>", "Parity Technologies <admin@parity.io>"]
+authors = ["Oasis Labs Inc. <feedback@oasislabs.com>", "Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 ekiden-crypto = { path = "./ekiden_crypto" }
