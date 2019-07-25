@@ -137,7 +137,7 @@ fn main() -> Fallible<()> {
         ws_port,
         ws_max_connections,
         gas_price,
-        block_gas_limit,
+        block_gas_limit.into(),
     );
 
     let client = match client {

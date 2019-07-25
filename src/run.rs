@@ -40,7 +40,7 @@ pub fn execute(
     ws_port: u16,
     ws_max_connections: usize,
     gas_price: U256,
-    block_gas_limit: usize,
+    block_gas_limit: U256,
 ) -> Fallible<RunningGateway> {
     let mut runtime = tokio::runtime::Runtime::new()?;
 

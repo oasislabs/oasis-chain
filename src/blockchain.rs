@@ -100,10 +100,10 @@ pub struct Blockchain {
 
 impl Blockchain {
     /// Create new simulated blockchain.
-    pub fn new(gas_price: U256, block_gas_limit: usize, km_client: Arc<MockClient>) -> Self {
+    pub fn new(gas_price: U256, block_gas_limit: U256, km_client: Arc<MockClient>) -> Self {
         Self {
             gas_price,
-            block_gas_limit: block_gas_limit.into(),
+            block_gas_limit,
             simulator_pool: Arc::new(
                 ThreadPoolBuilder::new()
                     .name_prefix("simulator-pool-")
