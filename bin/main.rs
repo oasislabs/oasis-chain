@@ -34,12 +34,13 @@ use failure::Fallible;
 use fdlimit::raise_fd_limit;
 use log::{error, info};
 
-use oasis_chain::{util, MIN_GAS_PRICE_GWEI};
+use oasis_chain::{util, BLOCK_GAS_LIMIT, MIN_GAS_PRICE_GWEI};
 
 fn main() -> Fallible<()> {
     // Increase max number of open files.
     raise_fd_limit();
 
+    let block_gas_limit = BLOCK_GAS_LIMIT.to_string();
     let gas_price = MIN_GAS_PRICE_GWEI.to_string();
 
     let args = App::new("Oasis chain")
@@ -86,6 +87,13 @@ fn main() -> Fallible<()> {
                 .takes_value(true),
         )
         .arg(
+            Arg::with_name("block-gas-limit")
+                .long("block-gas-limit")
+                .help("Block gas limit.")
+                .default_value(&block_gas_limit)
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("interface")
                 .long("interface")
                 .help("Interface address for HTTP and WebSocket servers.")
@@ -115,6 +123,7 @@ fn main() -> Fallible<()> {
     let ws_max_connections = value_t!(args, "ws-max-connections", usize)?;
     let pubsub_interval_secs = value_t!(args, "pubsub-interval", u64)?;
     let gas_price = util::gwei_to_wei(value_t!(args, "gas-price", u64)?);
+    let block_gas_limit = value_t!(args, "block-gas-limit", usize)?;
 
     let chain_info = include_str!("../resources/info.txt");
     info!("Starting Oasis local chain\n{}", chain_info);
@@ -128,6 +137,7 @@ fn main() -> Fallible<()> {
         ws_port,
         ws_max_connections,
         gas_price,
+        block_gas_limit,
     );
 
     let client = match client {
