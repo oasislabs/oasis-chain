@@ -40,10 +40,15 @@ pub fn execute(
     ws_port: u16,
     ws_max_connections: usize,
     gas_price: U256,
+    block_gas_limit: U256,
 ) -> Fallible<RunningGateway> {
     let mut runtime = tokio::runtime::Runtime::new()?;
 
-    let blockchain = Arc::new(Blockchain::new(gas_price, km_client.clone()));
+    let blockchain = Arc::new(Blockchain::new(
+        gas_price,
+        block_gas_limit,
+        km_client.clone(),
+    ));
     let broker = Arc::new(Broker::new(blockchain.clone()));
     runtime.spawn(broker.start(Duration::new(pubsub_interval_secs, 0)));
 

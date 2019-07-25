@@ -79,7 +79,10 @@ use failure::Fallible;
 
 use ekiden_keymanager::client::MockClient;
 
-pub use self::{blockchain::MIN_GAS_PRICE_GWEI, run::RunningGateway};
+pub use self::{
+    blockchain::{BLOCK_GAS_LIMIT, MIN_GAS_PRICE_GWEI},
+    run::RunningGateway,
+};
 
 pub fn start(
     _args: ArgMatches,
@@ -90,6 +93,7 @@ pub fn start(
     ws_port: u16,
     ws_max_connections: usize,
     gas_price: U256,
+    block_gas_limit: U256,
 ) -> Fallible<RunningGateway> {
     let km_client = Arc::new(MockClient::new());
 
@@ -102,5 +106,6 @@ pub fn start(
         ws_port,
         ws_max_connections,
         gas_price,
+        block_gas_limit,
     )
 }

@@ -34,7 +34,7 @@ use tokio_threadpool::{Builder as ThreadPoolBuilder, ThreadPool};
 type BoxFuture<T> = Box<dyn futures::Future<Item = T, Error = failure::Error> + Send>;
 
 /// Block gas limit.
-const BLOCK_GAS_LIMIT: usize = 16_000_000;
+pub const BLOCK_GAS_LIMIT: usize = 16_000_000;
 /// Minimum gas price (in gwei).
 pub const MIN_GAS_PRICE_GWEI: usize = 1;
 
@@ -92,6 +92,7 @@ impl ChainState {
 /// Simulated blockchain.
 pub struct Blockchain {
     gas_price: U256,
+    block_gas_limit: U256,
     simulator_pool: Arc<ThreadPool>,
     km_client: Arc<MockClient>,
     chain_state: Arc<RwLock<ChainState>>,
@@ -99,9 +100,10 @@ pub struct Blockchain {
 
 impl Blockchain {
     /// Create new simulated blockchain.
-    pub fn new(gas_price: U256, km_client: Arc<MockClient>) -> Self {
+    pub fn new(gas_price: U256, block_gas_limit: U256, km_client: Arc<MockClient>) -> Self {
         Self {
             gas_price,
+            block_gas_limit,
             simulator_pool: Arc::new(
                 ThreadPoolBuilder::new()
                     .name_prefix("simulator-pool-")
@@ -285,7 +287,7 @@ impl Blockchain {
         };
 
         // Check that gas < block gas limit.
-        if decoded.as_unsigned().gas > BLOCK_GAS_LIMIT.into() {
+        if decoded.as_unsigned().gas > self.block_gas_limit {
             return Err(format_err!("Requested gas greater than block gas limit")).into_future();
         }
 
@@ -296,7 +298,7 @@ impl Blockchain {
         };
 
         // Check gas price.
-        if txn.gas_price < MIN_GAS_PRICE_GWEI.into() {
+        if txn.gas_price < self.gas_price.into() {
             return Err(format_err!("Insufficient gas price")).into_future();
         }
 
@@ -332,7 +334,7 @@ impl Blockchain {
             author: Default::default(),
             timestamp,
             difficulty: Default::default(),
-            gas_limit: BLOCK_GAS_LIMIT.into(),
+            gas_limit: self.block_gas_limit,
             // TODO: Get 256 last_hashes.
             last_hashes: Arc::new(vec![best_block.hash]),
             gas_used: Default::default(),
@@ -353,7 +355,7 @@ impl Blockchain {
             number,
             timestamp,
             outcome.receipt.gas_used,
-            BLOCK_GAS_LIMIT.into(),
+            self.block_gas_limit,
             outcome.receipt.log_bloom,
         );
         let block_hash = block.hash();

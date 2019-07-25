@@ -48,14 +48,6 @@ HD Wallet
 Mnemonic:      range drive remove bleak mule satisfy mandate east lion minimum unfold ready
 Base HD Path:  m/44'/60'/0'/0/{account_index}
 
-Gas Price
-==================
-1000000000
-
-Gas Limit
-==================
-16000000
-
 2019-07-15 08:18:55,488 INFO  [ws] Listening for new connections on 127.0.0.1:8546.
 2019-07-15 08:18:55,492 INFO  [oasis_chain] Oasis local chain is running
 ```
