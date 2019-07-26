@@ -104,7 +104,7 @@ dependencies = [
 [[package]]
 name = "bcfs"
 version = "0.2.1"
-source = "git+https://github.com/oasislabs/oasis-rs#260e5391fcc41f4bdc58ff4be67194d6ad6e2557"
+source = "git+https://github.com/oasislabs/oasis-rs#fd0d7bd57e3b006bcfa31bf682608597a2c9c5a7"
 dependencies = [
  "blockchain-traits 0.2.1 (git+https://github.com/oasislabs/oasis-rs)",
  "nom 5.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -175,7 +175,7 @@ dependencies = [
 [[package]]
 name = "blockchain-traits"
 version = "0.2.1"
-source = "git+https://github.com/oasislabs/oasis-rs#260e5391fcc41f4bdc58ff4be67194d6ad6e2557"
+source = "git+https://github.com/oasislabs/oasis-rs#fd0d7bd57e3b006bcfa31bf682608597a2c9c5a7"
 
 [[package]]
 name = "bloomchain"
@@ -1477,7 +1477,7 @@ dependencies = [
 [[package]]
 name = "oasis-types"
 version = "0.2.0"
-source = "git+https://github.com/oasislabs/oasis-rs#260e5391fcc41f4bdc58ff4be67194d6ad6e2557"
+source = "git+https://github.com/oasislabs/oasis-rs#fd0d7bd57e3b006bcfa31bf682608597a2c9c5a7"
 dependencies = [
  "blockchain-traits 0.2.1 (git+https://github.com/oasislabs/oasis-rs)",
  "hex 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
