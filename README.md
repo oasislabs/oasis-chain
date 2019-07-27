@@ -1,5 +1,7 @@
 # oasis-chain
 
+[![CircleCI](https://circleci.com/gh/oasislabs/oasis-chain.svg?style=svg)](https://circleci.com/gh/oasislabs/oasis-chain)
+
 A simulated Oasis blockchain for local testing.
 
 ## Build/install
