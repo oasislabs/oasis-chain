@@ -8,7 +8,7 @@ use ekiden_crypto::{
     },
 };
 use ekiden_keymanager::{client::MockClient, ContractId, ContractKey, PublicKey};
-use ethcore::vm::{ConfidentialCtx as EthConfidentialCtx, Error, Result};
+use ethcore::vm::{AuthenticatedPayload, ConfidentialCtx as EthConfidentialCtx, Error, Result};
 use ethereum_types::{Address, H256};
 use hash::keccak;
 use zeroize::Zeroize;
@@ -194,7 +194,7 @@ impl EthConfidentialCtx for ConfidentialCtx {
         Ok(encrypted_payload)
     }
 
-    fn decrypt_session(&mut self, encrypted_payload: Vec<u8>) -> Result<Vec<u8>> {
+    fn decrypt_session(&mut self, encrypted_payload: Vec<u8>) -> Result<AuthenticatedPayload> {
         let contract_secret_key = self.contract.as_ref().unwrap().1.input_keypair.get_sk();
 
         let decryption = crypto::decrypt(Some(encrypted_payload), contract_secret_key)
@@ -207,7 +207,10 @@ impl EthConfidentialCtx for ConfidentialCtx {
             .map_err(|err| Error::Confidential(err.to_string()))?;
         self.next_nonce = Some(nonce);
 
-        Ok(decryption.plaintext)
+        Ok(AuthenticatedPayload {
+            decrypted_data: decryption.plaintext,
+            additional_data: decryption.aad,
+        })
     }
 
     fn encrypt_storage_key(&self, data: Vec<u8>) -> Result<Vec<u8>> {
