@@ -8,11 +8,11 @@ A simulated Oasis blockchain for local testing.
 ```
 $ git clone https://github.com/oasislabs/oasis-chain
 $ cd oasis-chain
-$ cargo install --path . --debug
+$ cargo install --path .
 ```
 or
 ```
-$ RUSTFLAGS='-C target-feature=+aes,+ssse3' cargo install --git https://github.com/oasislabs/oasis-chain --debug
+$ RUSTFLAGS='-C target-feature=+aes,+ssse3' cargo install --git https://github.com/oasislabs/oasis-chain
 ```
 
 ## Run
