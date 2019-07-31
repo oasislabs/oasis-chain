@@ -1,27 +1,45 @@
-version: 2
-jobs:
-  build:
+version: 2.1
+
+
+executors:
+  rust:
     environment:
       PATH: /root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       LD_LIBRARY_PATH: /root/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib
     docker:
       - image: oasislabs/rust:latest
     resource_class: xlarge
-    steps:
-      # Check out source from github
-      - checkout
 
-      # Check style
+
+jobs:
+  build:
+    executor: rust
+    steps:
+      - checkout
       - run:
           name: Rustfmt
           command: cargo fmt -- --check
-
-      # Build
       - run:
           name: Build
           command: cargo build
-
-      # Test
       - run:
-          name: Cargo tests
+          name: Test
           command: cargo test
+
+  build_installer:
+    executor: rust
+    steps:
+      - checkout
+      - run:
+          name: Build installer
+          working_directory: installer
+          command: cargo build
+
+
+workflows:
+  version: 2
+
+  build:
+    jobs:
+      - build
+      - build_installer

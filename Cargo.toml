@@ -80,3 +80,4 @@ members = [
     "ekiden_crypto",
     "ekiden_keymanager",
 ]
+exclude = ["installer"]
