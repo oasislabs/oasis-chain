@@ -1,0 +1,14 @@
+[package]
+name = "oasis-chain"
+version = "0.0.1"
+authors = ["Oasis Labs <feedback@oasislabs.com>"]
+edition = "2018"
+license = "GPL-3.0"
+description = "Runs a local Oasis blockchain"
+repository = "https://github.com/oasislabs/oasis-chain"
+
+[[bin]]
+name = "oasis-chain-installer"
+path = "src/main.rs"
+
+[dependencies]
