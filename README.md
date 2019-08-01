@@ -12,7 +12,7 @@ $ cargo install --path .
 ```
 or
 ```
-$ RUSTFLAGS='-C target-feature=+aes,+ssse3' cargo install --git https://github.com/oasislabs/oasis-chain
+$ RUSTFLAGS='-C target-feature=+aes,+ssse3' cargo install --git https://github.com/oasislabs/oasis-chain oasis-chain
 ```
 
 ## Run
