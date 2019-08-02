@@ -465,7 +465,6 @@ name = "ekiden-keymanager"
 version = "0.3.0-alpha"
 dependencies = [
  "ekiden-crypto 0.3.0-alpha",
- "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.98 (registry+https://github.com/rust-lang/crates.io-index)",
