@@ -10,6 +10,7 @@ fn main() {
             "https://github.com/oasislabs/oasis-chain",
             "--tag",
             "v0.1.0",
+            "oasis-chain",
         ])
         .envs(envs)
         .output()
