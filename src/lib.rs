@@ -25,27 +25,18 @@ extern crate parking_lot;
 #[macro_use]
 extern crate serde_derive;
 extern crate jsonrpc_core;
-extern crate serde;
 #[macro_use]
 extern crate jsonrpc_macros;
-extern crate common_types;
 extern crate ethcore;
-extern crate ethcore_bytes as bytes;
-extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate failure;
 extern crate hashdb;
-#[cfg(test)]
-extern crate hex;
 extern crate jsonrpc_http_server;
 extern crate jsonrpc_pubsub;
 extern crate jsonrpc_ws_server;
 extern crate keccak_hash as hash;
-extern crate kvdb;
 extern crate parity_reactor;
 extern crate parity_rpc;
-extern crate rlp_compress;
-extern crate serde_bytes;
 extern crate tokio;
 extern crate tokio_threadpool;
 extern crate zeroize;
