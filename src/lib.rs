@@ -22,7 +22,6 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log;
 extern crate parking_lot;
-extern crate rayon;
 #[macro_use]
 extern crate serde_derive;
 extern crate jsonrpc_core;
@@ -47,7 +46,6 @@ extern crate parity_reactor;
 extern crate parity_rpc;
 extern crate rlp_compress;
 extern crate serde_bytes;
-extern crate serde_cbor;
 extern crate tokio;
 extern crate tokio_threadpool;
 extern crate zeroize;
