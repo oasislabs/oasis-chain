@@ -436,8 +436,8 @@ impl Blockchain {
         };
 
         info!(
-            "Mined block number {:?} containing transaction {:?}",
-            number, txn_hash
+            "Mined block number {:?} containing transaction {:?}. Gas used: {:?}",
+            number, txn_hash, result.gas_used
         );
 
         Ok((txn_hash, result))
