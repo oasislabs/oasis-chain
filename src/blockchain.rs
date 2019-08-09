@@ -62,6 +62,7 @@ impl ChainState {
         let mut block_number_to_hash = HashMap::new();
         let genesis_block = EthereumBlock::new(
             block_number,
+            H256::zero(),
             0,
             U256::from(0),
             BLOCK_GAS_LIMIT.into(),
@@ -353,6 +354,7 @@ impl Blockchain {
         // Create a block.
         let mut block = EthereumBlock::new(
             number,
+            best_block.hash,
             timestamp,
             outcome.receipt.gas_used,
             self.block_gas_limit,
@@ -586,6 +588,7 @@ pub struct EthereumBlock {
     number: u64,
     timestamp: u64,
     hash: H256,
+    parent_hash: H256,
     gas_used: U256,
     gas_limit: U256,
     log_bloom: Bloom,
@@ -597,6 +600,7 @@ impl EthereumBlock {
     /// Create a new Ethereum block.
     pub fn new(
         number: u64,
+        parent_hash: H256,
         timestamp: u64,
         gas_used: U256,
         gas_limit: U256,
@@ -605,6 +609,7 @@ impl EthereumBlock {
         // TODO: better blockhash
         Self {
             number,
+            parent_hash,
             timestamp,
             logs: vec![],
             transactions: vec![],
@@ -636,8 +641,7 @@ impl EthereumBlock {
             inner: EthRpcHeader {
                 hash: Some(self.hash.into()),
                 size: None,
-                // TODO: parent hash
-                parent_hash: Default::default(),
+                parent_hash: self.parent_hash.into(),
                 uncles_hash: Default::default(),
                 author: Default::default(),
                 miner: Default::default(),
