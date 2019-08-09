@@ -22,7 +22,7 @@ use ethcore::{
 use ethereum_types::{Bloom, H256, H64, U256};
 use failure::{format_err, Error, Fallible};
 use futures::{future, prelude::*, stream};
-use hash::keccak;
+use hash::{keccak, KECCAK_EMPTY_LIST_RLP};
 use lazy_static::lazy_static;
 use parity_rpc::v1::types::{
     Block as EthRpcBlock, BlockTransactions as EthRpcBlockTransactions, Header as EthRpcHeader,
@@ -642,7 +642,7 @@ impl EthereumBlock {
                 hash: Some(self.hash.into()),
                 size: None,
                 parent_hash: self.parent_hash.into(),
-                uncles_hash: Default::default(),
+                uncles_hash: KECCAK_EMPTY_LIST_RLP.into(), /* empty list */
                 author: Default::default(),
                 miner: Default::default(),
                 // TODO: state root
