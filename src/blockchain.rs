@@ -10,6 +10,7 @@ use crate::{
 use ekiden_keymanager::client::MockClient;
 use ethcore::{
     error::CallError,
+    executed::ExecutionError,
     executive::{contract_address, Executed, Executive, TransactOptions},
     filter::Filter,
     log_entry::{LocalizedLogEntry, LogEntry},
@@ -511,7 +512,14 @@ impl Blockchain {
         id: BlockId,
     ) -> impl Future<Item = U256, Error = CallError> {
         self.simulate_transaction(transaction, id)
-            .map(|executed| executed.gas_used + executed.refunded)
+            .and_then(|executed| match executed {
+                Executed {
+                    exception: Some(e), ..
+                } => Err(ExecutionError::Internal(e.to_string()).into()),
+                Executed {
+                    gas_used, refunded, ..
+                } => Ok(gas_used + refunded),
+            })
     }
 
     /// Looks up logs based on the given filter.
