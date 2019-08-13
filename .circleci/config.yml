@@ -26,15 +26,6 @@ jobs:
           name: Test
           command: cargo test
 
-  build_installer:
-    executor: rust
-    steps:
-      - checkout
-      - run:
-          name: Build installer
-          working_directory: installer
-          command: cargo build
-
 
 workflows:
   version: 2
@@ -42,4 +33,3 @@ workflows:
   build:
     jobs:
       - build
-      - build_installer
