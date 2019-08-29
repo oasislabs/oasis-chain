@@ -65,3 +65,7 @@ members = [
     "ekiden_crypto",
     "ekiden_keymanager",
 ]
+
+[profile.release]
+lto = true
+opt-level = 3
