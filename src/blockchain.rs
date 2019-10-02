@@ -18,7 +18,7 @@ use ethcore::{
     state::State,
     transaction::{Action, LocalizedTransaction, SignedTransaction, UnverifiedTransaction},
     types::ids::BlockId,
-    vm::EnvInfo,
+    vm::{EnvInfo, Error as VmError},
 };
 use ethereum_types::{Bloom, H256, H64, U256};
 use failure::{format_err, Error, Fallible};
@@ -512,14 +512,17 @@ impl Blockchain {
         id: BlockId,
     ) -> impl Future<Item = U256, Error = CallError> {
         self.simulate_transaction(transaction, id)
-            .and_then(|executed| match executed {
-                Executed {
+            .inspect(|executed| {
+                if let Executed {
                     exception: Some(e), ..
-                } => Err(ExecutionError::Internal(e.to_string()).into()),
-                Executed {
-                    gas_used, refunded, ..
-                } => Ok(gas_used + refunded),
+                } = executed
+                {
+                    if *e != VmError::Reverted && *e != VmError::OutOfGas {
+                        eprintln!("vm error: {:?}", e);
+                    }
+                }
             })
+            .map(|executed| executed.gas_used + executed.refunded)
     }
 
     /// Looks up logs based on the given filter.
