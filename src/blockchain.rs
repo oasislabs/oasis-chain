@@ -512,15 +512,11 @@ impl Blockchain {
         id: BlockId,
     ) -> impl Future<Item = U256, Error = CallError> {
         self.simulate_transaction(transaction, id)
-            .inspect(|executed| {
-                if let Executed {
-                    exception: Some(e), ..
-                } = executed
-                {
-                    if *e != VmError::Reverted && *e != VmError::OutOfGas {
-                        eprintln!("vm error: {:?}", e);
-                    }
+            .inspect(|executed| match &executed.exception {
+                Some(VmError::Reverted) | Some(VmError::OutOfGas) => {
+                    eprintln!("vm error: {:?}", executed.exception.as_ref().unwrap());
                 }
+                _ => {}
             })
             .map(|executed| executed.gas_used + executed.refunded)
     }
