@@ -1,5 +1,5 @@
 [build]
-rustflags = ["-C", "target-feature=+aes,+ssse3"]
+rustflags = ["-C", "target-feature=+aes,+ssse3", "-Awarnings"]
 rustdocflags = ["-C", "target-feature=+aes,+ssse3"]
 
 [test]
