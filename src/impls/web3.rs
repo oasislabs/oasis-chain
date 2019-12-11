@@ -35,9 +35,10 @@ impl Web3Client {
 impl Web3 for Web3Client {
     fn client_version(&self) -> Result<String> {
         Ok(format!(
-            "oasis/{}/{}",
+            "oasis/{}/{}/{}",
             env!("CARGO_PKG_NAME"),
-            env!("CARGO_PKG_VERSION")
+            env!("CARGO_PKG_VERSION"),
+            env!("CARGO_PKG_GIT_REV"), // set in build.rs
         ))
     }
 
