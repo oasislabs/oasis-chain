@@ -53,3 +53,11 @@ Base HD Path:  m/44'/60'/0'/0/{account_index}
 2019-07-15 08:18:55,488 INFO  [ws] Listening for new connections on 127.0.0.1:8546.
 2019-07-15 08:18:55,492 INFO  [oasis_chain] Oasis local chain is running
 ```
+
+## Docker
+
+You can also run it as a Docker container:
+
+```
+$ docker run --rm -p 127.0.0.1:8546:8546 oasislabs/oasis-chain:latest
+```
