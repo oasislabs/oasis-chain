@@ -10,7 +10,6 @@ use crate::{
 use ekiden_keymanager::client::MockClient;
 use ethcore::{
     error::CallError,
-    executed::ExecutionError,
     executive::{contract_address, Executed, Executive, TransactOptions},
     filter::Filter,
     log_entry::{LocalizedLogEntry, LogEntry},
