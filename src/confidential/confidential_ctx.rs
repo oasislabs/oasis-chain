@@ -223,7 +223,7 @@ impl EthConfidentialCtx for ConfidentialCtx {
             .seal(&nonce, data, vec![]))
     }
 
-    fn encrypt_storage_value(&mut self, data: Vec<u8>) -> Result<Vec<u8>> {
+    fn encrypt_storage_value(&mut self, storage_key: Vec<u8>, data: Vec<u8>) -> Result<Vec<u8>> {
         let mut nonce = [0u8; NONCE_SIZE];
         nonce.copy_from_slice(
             &self
@@ -236,7 +236,7 @@ impl EthConfidentialCtx for ConfidentialCtx {
             .d2
             .as_ref()
             .expect("Should always have a Deoxys-II instance to encrypt storage")
-            .seal(&nonce, data, vec![]);
+            .seal(&nonce, data, storage_key);
         ciphertext.extend_from_slice(&nonce); // ciphertext || tag || nonce
 
         self.next_storage_nonce
@@ -248,7 +248,7 @@ impl EthConfidentialCtx for ConfidentialCtx {
         Ok(ciphertext)
     }
 
-    fn decrypt_storage_value(&self, data: Vec<u8>) -> Result<Vec<u8>> {
+    fn decrypt_storage_value(&self, storage_key: Vec<u8>, data: Vec<u8>) -> Result<Vec<u8>> {
         if data.len() < TAG_SIZE + NONCE_SIZE {
             return Err(Error::Confidential("truncated ciphertext".to_string()));
         }
@@ -263,7 +263,7 @@ impl EthConfidentialCtx for ConfidentialCtx {
             .d2
             .as_ref()
             .expect("Should always have a Deoxys-II instance to decrypt storage")
-            .open(&nonce, ciphertext.to_vec(), vec![])
+            .open(&nonce, ciphertext.to_vec(), storage_key)
             .unwrap())
     }
 
