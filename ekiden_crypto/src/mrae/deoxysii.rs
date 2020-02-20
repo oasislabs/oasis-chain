@@ -18,7 +18,7 @@ fn derive_symmetric_key(public: &[u8; 32], private: &[u8; 32]) -> [u8; KEY_SIZE]
 
     let pmk = private.diffie_hellman(&public);
 
-    let k = hmac::SigningKey::new(&digest::SHA256, b"MRAE_Box_Deoxys-II-256-128");
+    let k = hmac::SigningKey::new(hmac::HMAC_SHA256, b"MRAE_Box_Deoxys-II-256-128");
     let mut ctx = hmac::SigningContext::with_key(&k);
 
     ctx.update(pmk.as_bytes());
