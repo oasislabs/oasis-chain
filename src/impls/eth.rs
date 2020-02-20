@@ -267,13 +267,12 @@ impl Eth for EthClient {
 
     fn transaction_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<RpcTransaction>> {
         let hash = hash.into();
-        let eip86_transition = genesis::SPEC.params().eip86_transition;
 
         Box::new(
             self.blockchain
                 .get_txn_by_hash(hash)
                 .and_then(move |txn| {
-                    txn.map(|txn| Ok(RpcTransaction::from_localized(txn, eip86_transition)))
+                    txn.map(|txn| Ok(RpcTransaction::from_localized(txn)))
                         .transpose()
                 })
                 .map_err(jsonrpc_error),
@@ -286,13 +285,12 @@ impl Eth for EthClient {
         index: Index,
     ) -> BoxFuture<Option<RpcTransaction>> {
         let hash = hash.into();
-        let eip86_transition = genesis::SPEC.params().eip86_transition;
 
         Box::new(
             self.blockchain
                 .get_txn_by_block_hash_and_index(hash, index.value() as u32)
                 .and_then(move |txn| {
-                    txn.map(|txn| Ok(RpcTransaction::from_localized(txn, eip86_transition)))
+                    txn.map(|txn| Ok(RpcTransaction::from_localized(txn)))
                         .transpose()
                 })
                 .map_err(jsonrpc_error),
@@ -309,13 +307,11 @@ impl Eth for EthClient {
             return Box::new(future::ok(None));
         }
 
-        let eip86_transition = genesis::SPEC.params().eip86_transition;
-
         Box::new(
             self.blockchain
                 .get_txn(block_number_to_id(num), index.value() as u32)
                 .and_then(move |txn| {
-                    txn.map(|txn| Ok(RpcTransaction::from_localized(txn, eip86_transition)))
+                    txn.map(|txn| Ok(RpcTransaction::from_localized(txn)))
                         .transpose()
                 })
                 .map_err(jsonrpc_error),

@@ -9,9 +9,9 @@ deoxysii = { git = "https://github.com/oasislabs/deoxysii-rust" }
 failure = "0.1.5"
 rand = "0.6.5"
 # TODO: Change version when merged upstream (briansmith/ring#738).
-ring = "=0.14.5"
+ring = "0.16"
 rustc-hex = "2.0.1"
 serde = "1.0.71"
 serde_derive = "1.0"
-untrusted = "0.6.2"
+untrusted = "0.7"
 x25519-dalek = "0.5.1"
