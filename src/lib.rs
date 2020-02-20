@@ -16,6 +16,8 @@
 
 //! Oasis local chain.
 
+#![feature(option_flattening)]
+
 extern crate clap;
 extern crate futures;
 extern crate lazy_static;

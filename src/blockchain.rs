@@ -17,7 +17,7 @@ use ethcore::{
     state::State,
     transaction::{Action, LocalizedTransaction, SignedTransaction, UnverifiedTransaction},
     types::ids::BlockId,
-    vm::{EnvInfo, Error as VmError},
+    vm::{CreateContractAddress, EnvInfo, Error as VmError, OasisContract},
 };
 use ethereum_types::{Bloom, H256, H64, U256};
 use failure::{format_err, Error, Fallible};
@@ -404,15 +404,19 @@ impl Blockchain {
             gas_used: outcome.receipt.gas_used,
             contract_address: match txn.action {
                 Action::Call(_) => None,
-                Action::Create => Some(
-                    contract_address(
-                        genesis::SPEC.engine.machine().create_address_scheme(number),
-                        &txn.sender(),
-                        &txn.nonce,
-                        &txn.data,
-                    )
-                    .0,
-                ),
+                Action::Create => {
+                    let address_scheme = OasisContract::from_code(&txn.data)
+                        .ok()
+                        .flatten()
+                        .and_then(|hdr| {
+                            hdr.salt_if_confidential
+                                .map(|salt| CreateContractAddress::FromSaltAndCodeHash(salt.into()))
+                        })
+                        .unwrap_or_else(|| {
+                            genesis::SPEC.engine.machine().create_address_scheme(number)
+                        });
+                    Some(contract_address(address_scheme, &txn.sender(), &txn.nonce, &txn.data).0)
+                }
             },
             logs: logs,
             log_bloom: outcome.receipt.log_bloom,
