@@ -1,11 +1,10 @@
 //! Signature types.
-use failure::Fallible;
+use failure::{format_err, Fallible};
 use ring::{
     rand,
-    signature::{verify, Ed25519KeyPair, KeyPair, ED25519},
+    signature::{Ed25519KeyPair, KeyPair, VerificationAlgorithm as _, ED25519},
 };
 use serde_derive::{Deserialize, Serialize};
-use untrusted;
 
 use super::hash::Hash;
 
@@ -22,14 +21,15 @@ impl PrivateKey {
             .unwrap()
             .as_ref()
             .to_vec();
-        let key = Ed25519KeyPair::from_pkcs8(untrusted::Input::from(&key_pkcs8)).unwrap();
+        let key = Ed25519KeyPair::from_pkcs8(&key_pkcs8).unwrap();
 
         PrivateKey(key)
     }
 
     /// Loads the private key pair from PKCS8 encoded data.
     pub fn from_pkcs8(key: &[u8]) -> Fallible<Self> {
-        let key = Ed25519KeyPair::from_pkcs8(untrusted::Input::from(key))?;
+        let key = Ed25519KeyPair::from_pkcs8(key)
+            .map_err(|e| format_err!("could not parse private key: {}", e))?;
         Ok(PrivateKey(key))
     }
 
@@ -64,7 +64,9 @@ impl Signature {
         let digest = untrusted::Input::from(digest.as_ref());
         let sig = untrusted::Input::from(self.as_ref());
 
-        Ok(verify(&ED25519, pk, digest, sig)?)
+        Ok(ED25519
+            .verify(pk, digest, sig)
+            .map_err(|_| format_err!("signature verification failed"))?)
     }
 }
 
