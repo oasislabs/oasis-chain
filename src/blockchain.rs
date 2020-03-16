@@ -670,7 +670,6 @@ impl EthereumBlock {
 
     /// Retrieve an Ethereum block with additional metadata.
     pub fn rich_block(&self, include_txs: bool) -> EthRpcRichBlock {
-        let eip86_transition = genesis::SPEC.params().eip86_transition;
         let rich_header = self.rich_header();
 
         EthRpcRichBlock {
@@ -698,7 +697,7 @@ impl EthereumBlock {
                         self.transactions
                             .clone()
                             .into_iter()
-                            .map(|txn| EthRpcTransaction::from_localized(txn, eip86_transition))
+                            .map(|txn| EthRpcTransaction::from_localized(txn))
                             .collect(),
                     ),
                     false => EthRpcBlockTransactions::Hashes(
