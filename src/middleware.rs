@@ -1,7 +1,7 @@
 //! RPC Middleware
 
 use informant::RpcStats;
-use jsonrpc_core as rpc;
+use jsonrpc_core::{self as rpc, futures::future::Either};
 use jsonrpc_ws_server as ws;
 use parity_rpc::{informant::ActivityNotifier, v1::types::H256, Metadata, Origin};
 use std::{sync::Arc, vec::Vec};
@@ -58,7 +58,7 @@ fn generate_error_response_call(call: &rpc::Call, gen: &dyn ErrGen) -> rpc::Outp
         rpc::Call::Notification(notification) => {
             rpc::Output::from(Err(gen.generate()), rpc::Id::Null, notification.jsonrpc)
         }
-        rpc::Call::Invalid(id) => rpc::Output::from(Err(gen.generate()), id.clone(), None),
+        rpc::Call::Invalid { id, .. } => rpc::Output::from(Err(gen.generate()), id.clone(), None),
     }
 }
 
@@ -101,7 +101,12 @@ impl<T: ActivityNotifier> Middleware<T> {
 impl<M: rpc::Metadata, T: ActivityNotifier> rpc::Middleware<M> for Middleware<T> {
     type Future = rpc::FutureResponse;
 
-    fn on_request<F, X>(&self, request: rpc::Request, meta: M, process: F) -> Self::Future
+    fn on_request<F, X>(
+        &self,
+        request: rpc::Request,
+        meta: M,
+        process: F,
+    ) -> Either<Self::Future, X>
     where
         F: FnOnce(rpc::Request, M) -> X,
         X: rpc::futures::Future<Item = Option<rpc::Response>, Error = ()> + Send + 'static,
@@ -115,13 +120,13 @@ impl<M: rpc::Metadata, T: ActivityNotifier> rpc::Middleware<M> for Middleware<T>
             // If it exceeds the limit, respond with a custom application error.
             if batch_size > self.max_batch_size {
                 error!("Rejecting JSON-RPC batch: {:?} requests", batch_size);
-                return Box::new(rpc::futures::finished(Some(rpc::Response::Batch(
-                    generate_error_response_calls(calls, &BatchSizeErrGen {}),
+                return Either::A(Box::new(rpc::futures::finished(Some(
+                    rpc::Response::Batch(generate_error_response_calls(calls, &BatchSizeErrGen {})),
                 ))));
             }
         }
 
-        Box::new(process(request, meta))
+        Either::A(Box::new(process(request, meta)))
     }
 }
 
@@ -144,7 +149,12 @@ impl WsDispatcher {
 impl rpc::Middleware<Metadata> for WsDispatcher {
     type Future = rpc::FutureResponse;
 
-    fn on_request<F, X>(&self, request: rpc::Request, meta: Metadata, process: F) -> Self::Future
+    fn on_request<F, X>(
+        &self,
+        request: rpc::Request,
+        meta: Metadata,
+        process: F,
+    ) -> Either<Self::Future, X>
     where
         F: FnOnce(rpc::Request, Metadata) -> X,
         X: rpc::futures::Future<Item = Option<rpc::Response>, Error = ()> + Send + 'static,
@@ -157,13 +167,13 @@ impl rpc::Middleware<Metadata> for WsDispatcher {
             } => {
                 if self.stats.count_request(session) as usize > self.max_req_per_sec {
                     error!("Rejecting WS request");
-                    return generate_error_response(request, &RateLimitedErrGen {});
+                    return Either::A(generate_error_response(request, &RateLimitedErrGen {}));
                 }
             }
             _ => (),
         };
 
-        Box::new(process(request, meta))
+        Either::A(Box::new(process(request, meta)))
     }
 }
 
