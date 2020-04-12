@@ -230,10 +230,7 @@ mod tests {
         rpc::Request::Single(rpc::Call::MethodCall(rpc::MethodCall {
             jsonrpc: Some(rpc::Version::V2),
             method: "test".to_owned(),
-            params: Some(rpc::Params::Array(vec![
-                rpc::Value::from(1),
-                rpc::Value::from(2),
-            ])),
+            params: rpc::Params::Array(vec![rpc::Value::from(1), rpc::Value::from(2)]),
             id: rpc::Id::Num(id),
         }))
     }
@@ -330,10 +327,7 @@ mod tests {
         let batch_1 = rpc::Request::Batch(vec![rpc::Call::MethodCall(rpc::MethodCall {
             jsonrpc: Some(rpc::Version::V2),
             method: "test".to_owned(),
-            params: Some(rpc::Params::Array(vec![
-                rpc::Value::from(1),
-                rpc::Value::from(2),
-            ])),
+            params: rpc::Params::Array(vec![rpc::Value::from(1), rpc::Value::from(2)]),
             id: rpc::Id::Num(1),
         })]);
 
@@ -341,16 +335,13 @@ mod tests {
             rpc::Call::MethodCall(rpc::MethodCall {
                 jsonrpc: Some(rpc::Version::V2),
                 method: "test".to_owned(),
-                params: Some(rpc::Params::Array(vec![
-                    rpc::Value::from(1),
-                    rpc::Value::from(2),
-                ])),
+                params: rpc::Params::Array(vec![rpc::Value::from(1), rpc::Value::from(2)]),
                 id: rpc::Id::Num(2),
             }),
             rpc::Call::Notification(rpc::Notification {
                 jsonrpc: Some(rpc::Version::V2),
                 method: "test".to_owned(),
-                params: Some(rpc::Params::Array(vec![rpc::Value::from(1)])),
+                params: rpc::Params::Array(vec![rpc::Value::from(1)]),
             }),
         ]);
 
