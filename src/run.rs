@@ -25,7 +25,6 @@ use ethereum_types::U256;
 use failure::{format_err, Fallible};
 use informant;
 use log::{info, warn};
-use parity_reactor::EventLoop;
 use rpc::{self, HttpConfiguration, WsConfiguration};
 use rpc_apis;
 
@@ -53,9 +52,6 @@ pub fn execute(
     runtime.spawn(broker.start(Duration::new(pubsub_interval_secs, 0)));
 
     let rpc_stats = Arc::new(informant::RpcStats::default());
-
-    // Spin up event loop.
-    let event_loop = EventLoop::spawn();
 
     // Conf corresponds to parity command-line options "--unsafe-expose" + "--jsonrpc-cors=all"
     let mut ws_conf = WsConfiguration::default();
@@ -85,7 +81,7 @@ pub fn execute(
 
     let dependencies = rpc::Dependencies {
         apis: deps_for_rpc_apis.clone(),
-        remote: event_loop.raw_remote(),
+        executor: runtime.executor(),
         stats: rpc_stats.clone(),
     };
 
@@ -99,7 +95,6 @@ pub fn execute(
         runtime,
         blockchain,
         km_client,
-        event_loop,
         http_server,
         ws_server,
     };
@@ -114,7 +109,6 @@ pub struct RunningGateway {
     runtime: tokio::runtime::Runtime,
     blockchain: Arc<Blockchain>,
     km_client: Arc<MockClient>,
-    event_loop: EventLoop,
     http_server: Option<jsonrpc_http_server::Server>,
     ws_server: Option<jsonrpc_ws_server::Server>,
 }
@@ -126,7 +120,6 @@ impl RunningGateway {
             runtime,
             blockchain,
             km_client,
-            event_loop,
             http_server,
             ws_server,
         } = self;
@@ -138,7 +131,6 @@ impl RunningGateway {
         let weak_blockchain = Arc::downgrade(&blockchain);
         // drop this stuff as soon as exit detected.
         drop(runtime.shutdown_now());
-        drop(event_loop);
         drop(http_server);
         drop(ws_server);
         drop(blockchain);
