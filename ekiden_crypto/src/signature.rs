@@ -1,55 +1,88 @@
 //! Signature types.
-use failure::{format_err, Fallible};
-use ring::{
-    rand,
-    signature::{Ed25519KeyPair, KeyPair, VerificationAlgorithm as _, ED25519},
-};
+use std::io::Cursor;
+
+use byteorder::{LittleEndian, ReadBytesExt};
+use ed25519_dalek;
+use failure::Fallible;
+use rand::rngs::OsRng;
 use serde_derive::{Deserialize, Serialize};
+use zeroize::Zeroize;
 
 use super::hash::Hash;
 
-impl_bytes!(PublicKey, 32, "An Ed25519 public key.");
+impl_bytes!(
+    PublicKey,
+    ed25519_dalek::PUBLIC_KEY_LENGTH,
+    "An Ed25519 public key."
+);
+
+/// Signature error.
+#[derive(Debug, Fail)]
+enum SignatureError {
+    #[fail(display = "signature malleability check failed")]
+    MalleabilityError,
+}
+
+static CURVE_ORDER: &'static [u64] = &[
+    0x1000000000000000,
+    0,
+    0x14def9dea2f79cd6,
+    0x5812631a5cf5d3ed,
+];
 
 /// An Ed25519 private key.
-pub struct PrivateKey(pub Ed25519KeyPair);
+pub struct PrivateKey(pub ed25519_dalek::Keypair);
 
 impl PrivateKey {
     /// Generates a new private key pair.
     pub fn generate() -> Self {
-        let rng = rand::SystemRandom::new();
-        let key_pkcs8 = Ed25519KeyPair::generate_pkcs8(&rng)
-            .unwrap()
-            .as_ref()
-            .to_vec();
-        let key = Ed25519KeyPair::from_pkcs8(&key_pkcs8).unwrap();
+        let mut rng = OsRng {};
 
-        PrivateKey(key)
+        PrivateKey(ed25519_dalek::Keypair::generate(&mut rng))
     }
 
-    /// Loads the private key pair from PKCS8 encoded data.
-    pub fn from_pkcs8(key: &[u8]) -> Fallible<Self> {
-        let key = Ed25519KeyPair::from_pkcs8(key)
-            .map_err(|e| format_err!("could not parse private key: {}", e))?;
-        Ok(PrivateKey(key))
+    /// Convert this private key into bytes.
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = self.0.secret.to_bytes();
+        let bvec = (&bytes).to_vec();
+        bytes.zeroize();
+        bvec
+    }
+
+    /// Construct a private key from bytes returned by `to_bytes`.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic in case the passed bytes do not have the correct length.
+    pub fn from_bytes(mut bytes: Vec<u8>) -> PrivateKey {
+        let secret = ed25519_dalek::SecretKey::from_bytes(&bytes).unwrap();
+        bytes.zeroize();
+        let public = (&secret).into();
+
+        PrivateKey(ed25519_dalek::Keypair { secret, public })
+    }
+
+    /// Generate a new private key from a test key seed.
+    pub fn from_test_seed(seed: String) -> Self {
+        let seed = Hash::digest_bytes(seed.as_bytes());
+        let secret = ed25519_dalek::SecretKey::from_bytes(seed.as_ref()).unwrap();
+        let pk: ed25519_dalek::PublicKey = (&secret).into();
+
+        PrivateKey(ed25519_dalek::Keypair { secret, public: pk })
     }
 
     /// Returns the public key.
     pub fn public_key(&self) -> PublicKey {
-        let mut data = [0u8; 32];
-        data[..].copy_from_slice(self.0.public_key().as_ref());
-
-        PublicKey(data)
+        PublicKey(self.0.public.to_bytes())
     }
 }
 
 impl Signer for PrivateKey {
     fn sign(&self, context: &[u8], message: &[u8]) -> Fallible<Signature> {
+        // TODO/#2103: Replace this with Ed25519ctx.
         let digest = Hash::digest_bytes_list(&[context, message]);
 
-        let mut result = [0u8; 64];
-        result[..].copy_from_slice(self.0.sign(digest.as_ref()).as_ref());
-
-        Ok(Signature(result))
+        Ok(Signature(self.0.sign(digest.as_ref()).to_bytes()))
     }
 }
 
@@ -58,15 +91,19 @@ impl_bytes!(Signature, 64, "An Ed25519 signature.");
 impl Signature {
     /// Verify signature.
     pub fn verify(&self, pk: &PublicKey, context: &[u8], message: &[u8]) -> Fallible<()> {
+        // TODO/#2103: Replace this with Ed25519ctx.
+        let pk = ed25519_dalek::PublicKey::from_bytes(pk.as_ref()).unwrap();
         let digest = Hash::digest_bytes_list(&[context, message]);
+        let sig_slice = self.as_ref();
+        let sig = ed25519_dalek::Signature::from_bytes(sig_slice).unwrap();
 
-        let pk = untrusted::Input::from(pk.as_ref());
-        let digest = untrusted::Input::from(digest.as_ref());
-        let sig = untrusted::Input::from(self.as_ref());
+        // ed25519-dalek does not enforce the RFC 8032 mandated constraint
+        // that s is in range [0, order), so signatures are malleable.
+        if !sc_minimal(&sig_slice[32..]) {
+            return Err(SignatureError::MalleabilityError.into());
+        }
 
-        Ok(ED25519
-            .verify(pk, digest, sig)
-            .map_err(|_| format_err!("signature verification failed"))?)
+        Ok(pk.verify(digest.as_ref(), &sig)?)
     }
 }
 
@@ -83,4 +120,119 @@ pub struct SignatureBundle {
 pub trait Signer: Send + Sync {
     /// Generates a signature over the context and message.
     fn sign(&self, context: &[u8], message: &[u8]) -> Fallible<Signature>;
+}
+
+// Check if s < L, per RFC 8032, inspired by the Go runtime library's version
+// of this check.
+fn sc_minimal(raw_s: &[u8]) -> bool {
+    let mut rd = Cursor::new(raw_s);
+    let mut s = [0u64; 4];
+
+    // Read the raw scalar into limbs, and reverse it, because the raw
+    // representation is little-endian.
+    rd.read_u64_into::<LittleEndian>(&mut s[..]).unwrap();
+    s.reverse();
+
+    // Compare each limb, from most significant to least.
+    for i in 0..4 {
+        if s[i] > CURVE_ORDER[i] {
+            return false;
+        } else if s[i] < CURVE_ORDER[i] {
+            return true;
+        }
+    }
+
+    // The scalar is equal to the order of the curve.
+    false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sc_minimal() {
+        // L - 2^0
+        assert!(sc_minimal(&[
+            0xec, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9,
+            0xde, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x10
+        ]));
+
+        // L - 2^64
+        assert!(sc_minimal(&[
+            0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd5, 0x9c, 0xf7, 0xa2, 0xde, 0xf9,
+            0xde, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x10
+        ]));
+
+        // L - 2^192
+        assert!(sc_minimal(&[
+            0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd5, 0x9c, 0xf7, 0xa2, 0xde, 0xf9,
+            0xde, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0x0f,
+        ]));
+
+        // L
+        assert!(!sc_minimal(&[
+            0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9,
+            0xde, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x10
+        ]));
+
+        // L + 2^0
+        assert!(!sc_minimal(&[
+            0xef, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9,
+            0xde, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x10
+        ]));
+
+        // L + 2^64
+        assert!(!sc_minimal(&[
+            0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd7, 0x9c, 0xf7, 0xa2, 0xde, 0xf9,
+            0xde, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x10
+        ]));
+
+        // L + 2^128
+        assert!(!sc_minimal(&[
+            0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9,
+            0xde, 0x14, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x10
+        ]));
+
+        // L + 2^192
+        assert!(!sc_minimal(&[
+            0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9,
+            0xde, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x10
+        ]));
+
+        // Scalar from the go runtime's test case.
+        assert!(!sc_minimal(&[
+            0x67, 0x65, 0x4b, 0xce, 0x38, 0x32, 0xc2, 0xd7, 0x6f, 0x8f, 0x6f, 0x5d, 0xaf, 0xc0,
+            0x8d, 0x93, 0x39, 0xd4, 0xee, 0xf6, 0x76, 0x57, 0x33, 0x36, 0xa5, 0xc5, 0x1e, 0xb6,
+            0xf9, 0x46, 0xb3, 0x1d,
+        ]))
+    }
+
+    #[test]
+    fn test_private_key_to_bytes() {
+        let secret = PrivateKey::generate();
+        let bytes = secret.to_bytes();
+        let from_bytes = PrivateKey::from_bytes(bytes);
+        assert_eq!(secret.public_key(), from_bytes.public_key());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_private_key_to_bytes_malformed_a() {
+        PrivateKey::from_bytes(vec![]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_private_key_to_bytes_malformed_b() {
+        PrivateKey::from_bytes(vec![1, 2, 3]);
+    }
 }
