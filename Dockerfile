@@ -10,5 +10,6 @@ FROM gcr.io/distroless/cc
 COPY --from=oasis-chain-builder /oasis-chain/target/release/oasis-chain /
 
 EXPOSE 8546/tcp
+USER nobody
 
 ENTRYPOINT ["/oasis-chain", "--interface", "0.0.0.0"]
