@@ -1,5 +1,4 @@
 **/.gitignore
-.*
 Dockerfile
 *.dockerfile
 target/
