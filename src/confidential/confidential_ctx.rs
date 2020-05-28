@@ -165,10 +165,21 @@ impl EthConfidentialCtx for ConfidentialCtx {
     }
 
     fn encrypt_session(&mut self, data: Vec<u8>) -> Result<Vec<u8>> {
-        if self.peer_public_key.is_none() || self.contract.is_none() || self.next_nonce.is_none() {
-            return Err(Error::Confidential(
-                "must have key pair of a contract and peer and a next nonce".to_string(),
-            ));
+        let mut err_msg = "".to_string();
+        if self.peer_public_key.is_none() {
+            err_msg.push_str("; no peer public key specified");
+        }
+        if self.contract.is_none() {
+            err_msg.push_str("; no contract specified from which to extract contract public key");
+        }
+        if self.next_nonce.is_none() {
+            err_msg.push_str("; no next nonce specified");
+        }
+        if !err_msg.is_empty() {
+            return Err(Error::Confidential(format!(
+                "Cannot encrypt session {}.",
+                err_msg
+            )));
         }
 
         let contract_key = &self.contract.as_ref().unwrap().1;
