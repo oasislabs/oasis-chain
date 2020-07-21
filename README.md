@@ -2,7 +2,8 @@
 
 [![CircleCI](https://circleci.com/gh/oasislabs/oasis-chain.svg?style=svg)](https://circleci.com/gh/oasislabs/oasis-chain)
 
-A simulated Oasis blockchain for local testing.
+A simulated instance of a network running the [Oasis Eth/WASI runtime](https://github.com/oasislabs/oasis-ethwasi-runtime).
+Used for local testing.
 
 ## Build/install
 ```
