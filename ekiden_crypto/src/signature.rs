@@ -2,7 +2,7 @@
 use std::io::Cursor;
 
 use byteorder::{LittleEndian, ReadBytesExt};
-use ed25519_dalek;
+use ed25519_dalek::{self, ed25519::signature::Signature as _, Signer as _, Verifier};
 use failure::Fallible;
 use rand::rngs::OsRng;
 use serde_derive::{Deserialize, Serialize};
