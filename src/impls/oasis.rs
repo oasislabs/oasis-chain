@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 
 use ekiden_keymanager::{client::MockClient, ContractId};
 use ethereum_types::Address;
@@ -66,6 +66,7 @@ impl Oasis for OasisClient {
     }
 
     fn invoke(&self, raw: Bytes) -> BoxFuture<RpcExecutionPayload> {
+        let start = Instant::now();
         Box::new(
             self.blockchain
                 .send_raw_transaction(raw.into())
@@ -76,6 +77,10 @@ impl Oasis for OasisClient {
                         status_code: (result.status_code as u64).into(),
                         output: result.output.into(),
                     })
+                })
+                .then(move |result| {
+                    info!("invoke time: {:?}", start.elapsed());
+                    result
                 }),
         )
     }

@@ -16,7 +16,7 @@
 
 //! Eth rpc implementation.
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 
 use ethcore::{filter::Filter as EthcoreFilter, ids::BlockId};
 use ethereum_types::{Address, H256, U256};
@@ -376,11 +376,16 @@ impl Eth for EthClient {
     }
 
     fn send_raw_transaction(&self, raw: Bytes) -> BoxFuture<RpcH256> {
+        let start = Instant::now();
         Box::new(
             self.blockchain
                 .send_raw_transaction(raw.into())
                 .map(|(hash, _result)| hash.into())
-                .map_err(execution_error),
+                .map_err(execution_error)
+                .then(move |result| {
+                    info!("send_raw_transaction time: {:?}", start.elapsed());
+                    result
+                }),
         )
     }
 
