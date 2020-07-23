@@ -34,7 +34,7 @@ use tokio_threadpool::{Builder as ThreadPoolBuilder, ThreadPool};
 type BoxFuture<T> = Box<dyn futures::Future<Item = T, Error = failure::Error> + Send>;
 
 /// Block gas limit.
-pub const BLOCK_GAS_LIMIT: usize = 16_000_000;
+pub const BLOCK_GAS_LIMIT: usize = 160_000_000;
 /// Minimum gas price (in gwei).
 pub const MIN_GAS_PRICE_GWEI: usize = 1;
 
